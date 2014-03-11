@@ -71,7 +71,7 @@ public class DLoadContext implements LoadContext {
 		}
 		
 		// initialise rootBeanContext after origin and relativePath have been set
-    this.rootBeanContext = new DLoadBeanContext(this, rootDescriptor, null, defaultBatchSize, null);
+        this.rootBeanContext = new DLoadBeanContext(this, rootDescriptor, null, defaultBatchSize, null);
 	}	
 
   protected boolean isExcludeBeanCache() {
@@ -231,21 +231,23 @@ public class DLoadContext implements LoadContext {
 	}
 
 	public void register(String path, EntityBeanIntercept ebi){
-		getBeanContext(path).register(ebi);
+		// JBW/GW - 16MAR13: Problems with recursive hierarchies finding wrong types on the same path name.
+		getBeanContext(path, path + "-" + ebi.getOwner().getClass().getSimpleName()).register(ebi);
 	}
 
 	public void register(String path, BeanCollection<?> bc){
 		getManyContext(path).register(bc);
 	}
 	
-	private DLoadBeanContext getBeanContext(String path) {
+	// JBW/GW - 16MAR13: Problems with recursive hierarchies finding wrong types on the same path name.
+	private DLoadBeanContext getBeanContext(String path, String key) {
 		if (path == null){
 			return rootBeanContext;
 		}
-		DLoadBeanContext beanContext = beanMap.get(path);
+		DLoadBeanContext beanContext = beanMap.get(key);
 		if (beanContext == null){
 			beanContext = createBeanContext(path, defaultBatchSize, null);
-			beanMap.put(path, beanContext);
+			beanMap.put(key, beanContext);
 		}
 		return beanContext;
 	}

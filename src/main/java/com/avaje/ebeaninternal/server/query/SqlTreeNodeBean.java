@@ -180,7 +180,7 @@ public class SqlTreeNodeBean implements SqlTreeNode {
   /**
    * read the properties from the resultSet.
    */
-  public void load(DbReadContext ctx, Object parentBean) throws SQLException {
+	public void load(DbReadContext ctx, Object parentBean, boolean hasBeanMapKey) throws SQLException {
 
     Object lazyLoadParentId = null;
     if (lazyLoadParent != null) {
@@ -238,7 +238,8 @@ public class SqlTreeNodeBean implements SqlTreeNode {
           contextBean = localBean;
         } else {
           // bean already exists in persistenceContext
-          if (isLoadContextBeanNeeded(queryMode, contextBean)){ 
+		  // JBW/GW - 13APR13: For beanmap turn off lazy load. It may find our bean in CTX with mapkey unloaded and unloadable.
+		  if (queryMode.isLoadContextBean() || (hasBeanMapKey)){
             // refresh it anyway (lazy loading for example)
             localBean = contextBean;
             if (localBean instanceof EntityBean) {
@@ -294,7 +295,8 @@ public class SqlTreeNodeBean implements SqlTreeNode {
     for (int i = 0; i < children.length; i++) {
       // read each child... and let them set their
       // values back to this localBean
-      children[i].load(ctx, localBean);
+	  // JBW/GW - 13APR13: For beanmap turn off lazy load. It may find our bean in CTX with mapkey unloaded and unloadable.
+	  children[i].load(ctx, localBean, false);
     }
 
     if (lazyLoadMany) {

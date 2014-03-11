@@ -152,7 +152,9 @@ public class InheritInfo {
 		
 		BeanProperty prop = null;
 		
-		for (int i = 0, x=children.size(); i < x; i++) {
+		// JBW/GW - 10MAR14: With recursive @Entity it's important to find the "highest" class with the property.
+		for (int i = children.size() - 1; i >= 0; i--) {
+		//for (int i = 0; i < children.size(); i++) {
 			InheritInfo childInfo = children.get(i);
 			
 			// recursively search this child bean descriptor
@@ -175,7 +177,7 @@ public class InheritInfo {
 			InheritInfo childInfo = children.get(i);
 			selectProps.add(childInfo.descriptor.propertiesLocal());
 			
-			childInfo.addChildrenProperties(selectProps);
+            childInfo.addChildrenProperties(selectProps);
 		}
 	}
 

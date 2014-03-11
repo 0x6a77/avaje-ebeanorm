@@ -78,7 +78,8 @@ public class AutoFetchManagerFactory {
 	 */
 	private File getAutoFetchFile(String serverName, ResourceManager resourceManager) {
 
-		String fileName = ".ebean."+serverName+".autofetch";
+		// JBW/GW - 06APR13: Need to be able to see the autofetch file.
+		String fileName = "ebean."+serverName+".autofetch";
 
 		File dir = resourceManager.getAutofetchDirectory();
 

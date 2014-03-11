@@ -372,7 +372,12 @@ public class AnnotationFields extends AnnotationParser {
 
     } else if (strategy == GenerationType.AUTO) {
       if (prop.getPropertyType().equals(UUID.class)) {
-        descriptor.setIdGeneratorName(UuidIdGenerator.AUTO_UUID);
+		// JBW/GW - 24DEC12: if we've already specified a generator name (via the JPA @Generated annotation) then use it.
+		if ((genName != null) && (genName.length() > 0)) {
+		  descriptor.setIdGeneratorName(genName);
+		} else {
+          descriptor.setIdGeneratorName(UuidIdGenerator.AUTO_UUID);
+		}
         descriptor.setIdType(IdType.GENERATOR);
 
       } else {

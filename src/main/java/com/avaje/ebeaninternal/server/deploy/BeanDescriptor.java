@@ -1,6 +1,7 @@
 package com.avaje.ebeaninternal.server.deploy;
 
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -44,6 +45,7 @@ import com.avaje.ebeaninternal.api.SpiEbeanServer;
 import com.avaje.ebeaninternal.api.SpiQuery;
 import com.avaje.ebeaninternal.api.SpiUpdatePlan;
 import com.avaje.ebeaninternal.api.TransactionEventTable.TableIUD;
+import com.avaje.ebeaninternal.server.cache.AssocBeanCacheCombo;
 import com.avaje.ebeaninternal.server.cache.CachedBeanData;
 import com.avaje.ebeaninternal.server.cache.CachedBeanDataFromBean;
 import com.avaje.ebeaninternal.server.cache.CachedBeanDataToBean;
@@ -932,32 +934,34 @@ public class BeanDescriptor<T> implements MetaBeanInfo {
 
     BeanDescriptor<?> targetDescriptor = many.getTargetDescriptor();
     
-    List<Object> idList = ids.getIdList();
+    // JBW/GW - 12MAR13: Add a cache of the many's member object class types in case the many's target is abstract
+	// (and therefore cannot be directly instantiated when we rehydrate members).
+    List<AssocBeanCacheCombo> assocList = ids.getIdList();
     bc.checkEmptyLazyLoad();
-    for (int i = 0; i < idList.size(); i++) {
-      Object id = idList.get(i);
-      Object refBean = targetDescriptor.createReference(readOnly, id, null);
+    for (int i = 0; i < assocList.size(); i++) {
+    	AssocBeanCacheCombo combo = assocList.get(i);
+      targetDescriptor = getBeanDescriptor((Class) combo.getClazz());
+      Object refBean = targetDescriptor.createReference(readOnly, combo.getId(), null);
       EntityBeanIntercept refEbi = ((EntityBean) refBean)._ebean_getIntercept();
     
       many.add(bc, refBean);
-      persistenceContext.put(id, refBean);
+      persistenceContext.put(combo.getId(), refBean);
       refEbi.setPersistenceContext(persistenceContext);
     }
     return true;
   }
 
   public void cachePutMany(BeanPropertyAssocMany<?> many, BeanCollection<?> bc, Object parentId) {
+    // JBW/GW - 12MAR13: Add a cache of the many's member object class types in case the many's target is abstract
+	// (and therefore cannot be directly instantiated when we rehydrate members).
     BeanDescriptor<?> targetDescriptor = many.getTargetDescriptor();
-
-    ArrayList<Object> idList = new ArrayList<Object>();
-
-    // get the underlying collection of beans (in the List, Set or Map)
     Collection<?> actualDetails = bc.getActualDetails();
+    ArrayList<AssocBeanCacheCombo> comboList = new ArrayList<AssocBeanCacheCombo>();
     for (Object bean : actualDetails) {
-      // Collect the id values 
-      idList.add(targetDescriptor.getId(bean));
+    	AssocBeanCacheCombo combo = new AssocBeanCacheCombo(targetDescriptor.getId(bean), bean.getClass());
+    	comboList.add(combo);
     }
-    CachedManyIds ids = new CachedManyIds(idList);
+    CachedManyIds ids = new CachedManyIds(comboList);
     cachePutCachedManyIds(parentId, many.getName(), ids);
   }
 
@@ -981,6 +985,35 @@ public class BeanDescriptor<T> implements MetaBeanInfo {
     collectionIdsCache.put(parentId, ids);
   }
 
+  // JBW/GW - 08MAR13: determine if the cache version is stale.
+  public boolean isCacheBeanVersionStale(Object id, Object version) {
+    boolean result = false;
+	  
+    if (cacheOptions.isUseCache()) {
+      CachedBeanData d = (CachedBeanData) getBeanCache().get(id);
+        for (int i = 0; i < propertiesNonMany.length; i++) {
+          BeanProperty prop = propertiesNonMany[i];
+          if (prop.equals(firstVersionProperty())) {
+            if (d == null) {
+              // If it's not in the cache then there's no way to know if it's stale.  
+              // The cost is just a read that might not really be needed.  (Tho' it's likely stale for real.)
+              //result = true;
+            } else {
+              Object data = d.getData(i);
+              if ((data != null) && (version != null)) {
+                if ((data.getClass().equals(Timestamp.class)) && (version.getClass().equals(Timestamp.class))) {
+                  Timestamp cachedVersion = (Timestamp) data;
+                  Timestamp nonCachedVersion = (Timestamp) version;
+                  result = nonCachedVersion.before(cachedVersion);
+              }
+            }
+          }
+        }	      
+      }
+    }
+    return result;
+  }
+  
   /**
    * Return a bean from the bean cache.
    */

@@ -21,13 +21,19 @@ public class ReflectGetter {
 	 */
 	public static BeanReflectGetter create(DeployBeanProperty prop) {
 			
+		// JBW/GW - 28OCT12: A better way to check abstract class properties.
+		String property = prop.getFullBeanName();
+		Method readMethod = prop.getReadMethod();
 		if (!prop.isId()){
+			if (readMethod == null) {
 			// not expecting this to ever be used/called
 			return new NonIdGetter(prop.getFullBeanName());
-			
+			} else {
+				// But there is a read method, so use it.
+				return new IdGetter(property, readMethod);
+			}
+
 		} else {
-			String property = prop.getFullBeanName();
-			Method readMethod = prop.getReadMethod();
 			if (readMethod == null){
 				String m = "Abstract class with no readMethod for "+property;
 				throw new RuntimeException(m);

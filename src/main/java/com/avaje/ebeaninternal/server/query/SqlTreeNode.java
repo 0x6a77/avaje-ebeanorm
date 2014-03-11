@@ -42,6 +42,7 @@ public interface SqlTreeNode {
    * </p>
    * 
    */
-  public void load(DbReadContext ctx, Object parentBean) throws SQLException;
+	// JBW/GW - 13APR13: For beanmap turn off lazy load. It may find our bean in CTX with mapkey unloaded and unloadable.
+	public void load(DbReadContext ctx, Object parentBean, boolean hasBeanMapKey) throws SQLException;
 
 }

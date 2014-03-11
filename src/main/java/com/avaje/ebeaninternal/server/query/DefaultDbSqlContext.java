@@ -125,14 +125,14 @@ public class DefaultDbSqlContext implements DbSqlContext {
       sb.append(".").append(pair.getLocalDbColumn());
     }
 
-
-    // add on any inheritance where clause
-    if (inheritance != null && inheritance.length() > 0){
-    	sb.append(" and ");
-    	sb.append(a2);
-    	sb.append(".");
-    	sb.append(inheritance);
-    }
+// JBW/GW - 10MAR14: It's not clear why this was added, but it screws up inheritance when there's abstract classes.
+//    // add on any inheritance where clause
+//    if (inheritance != null && inheritance.length() > 0){
+//    	sb.append(" and ");
+//    	sb.append(a2);
+//    	sb.append(".");
+//    	sb.append(inheritance);
+//    }
 
     sb.append(" ");
   }

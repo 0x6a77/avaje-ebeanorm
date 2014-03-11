@@ -470,7 +470,11 @@ public class CQuery<T> implements DbReadContext, CancelableQuery {
         }
         
         // add the loadedBean to the appropriate collection of lazyLoadParentBean
-        lazyLoadManyProperty.addBeanToCollectionWithCreate(lazyLoadParentBean, loadedBean);
+        // JBW/GW - 10MAR14: This is broken for some recursive @Entity BeanCollections.
+        // Protectcs against NPE, but data comes back empty.
+        if (this.lazyLoadParentBean != null) {
+          lazyLoadManyProperty.addBeanToCollectionWithCreate(lazyLoadParentBean, loadedBean);
+        }
       }
     }
   }
@@ -537,7 +541,8 @@ public class CQuery<T> implements DbReadContext, CancelableQuery {
         dataReader.incrementPos(1);
       }
 
-      rootNode.load(this, null);
+  	  // JBW/GW - 13APR13: For beanmap turn off lazy load. It may find our bean in CTX with mapkey unloaded and unloadable.
+      rootNode.load(this, null, false);
 
       return true;
     }

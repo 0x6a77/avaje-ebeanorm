@@ -125,6 +125,11 @@ public final class DefaultPersistenceContext implements PersistenceContext {
   private ClassContext getClassContext(Class<?> beanType) {
 
     String clsName = beanType.getName();
+    // JBW/GW - 10MAR14: I just don't know what to do with this.
+    // TODO: This is a hack to get me through a deadline.
+    // These things sometimes show up as abstract classes when concrete classes are in the map.
+    // We use UUIDs, so it's safe to put them all into one map. (Probably not a good idea for anyone else.)
+    clsName = clsName.substring(0, clsName.lastIndexOf('.'));
     ClassContext classMap = typeCache.get(clsName);
     if (classMap == null) {
       classMap = new ClassContext();

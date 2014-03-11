@@ -6,6 +6,7 @@ import java.util.List;
 import com.avaje.ebeaninternal.server.deploy.BeanPropertyAssocMany;
 import com.avaje.ebeaninternal.server.deploy.DbReadContext;
 import com.avaje.ebeaninternal.server.deploy.DbSqlContext;
+import com.avaje.ebeaninternal.server.deploy.ManyType;
 
 public final class SqlTreeNodeManyRoot extends SqlTreeNodeBean {
 
@@ -22,11 +23,18 @@ public final class SqlTreeNodeManyRoot extends SqlTreeNodeBean {
   }
 
   @Override
-  public void load(DbReadContext cquery, Object parentBean) throws SQLException {
+	public void load(DbReadContext cquery, Object parentBean, boolean hasBeanMapKey) throws SQLException {
     // pass in null for parentBean because the localBean
     // that is built is added to a collection rather than
     // being set to the parentBean directly
-    super.load(cquery, null);
+
+	// JBW/GW - 13APR13: For beanmap turn off lazy load. It may find our bean in CTX with mapkey unloaded and unloadable.
+	if (nodeBeanProp instanceof BeanPropertyAssocMany) {
+	  BeanPropertyAssocMany many = (BeanPropertyAssocMany) nodeBeanProp;
+      super.load(cquery, null, many.getManyType().equals(ManyType.JAVA_MAP));
+	} else {
+    	  super.load(cquery, null, false);
+	}
   }
 
   /**

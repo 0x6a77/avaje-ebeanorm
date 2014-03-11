@@ -13,6 +13,9 @@ import javax.persistence.EntityNotFoundException;
 import javax.persistence.PersistenceException;
 
 import com.avaje.ebean.Ebean;
+import com.avaje.ebeaninternal.server.core.DefaultServer;
+import com.avaje.ebeaninternal.server.deploy.BeanDescriptor;
+import com.avaje.ebeaninternal.server.deploy.BeanProperty;
 
 /**
  * This is the object added to every entity bean using byte code enhancement.
@@ -583,12 +586,34 @@ public final class EntityBeanIntercept implements Serializable {
       loadBean(propertyName);
     } else if (loadedProps != null && !loadedProps.contains(propertyName)) {
       loadBean(propertyName);
+	} else {
+		// JBW/GW - 23OCT12: Check cache staleness.
+		checkStale(propertyName);
     }
 
     if (nodeUsageCollector != null && loaded) {
       nodeUsageCollector.addUsed(propertyName);
     }
   }
+
+	// JBW/GW - 23OCT12: Check cache staleness.
+	public void checkStale(String propertyName) {
+		if (ebeanServerName != null) {
+			DefaultServer loader = (DefaultServer) Ebean.getServer(ebeanServerName);
+			BeanDescriptor<?> desc = loader.getBeanDescriptor(owner.getClass());
+			Object id = desc.getId(getOwner());
+			BeanProperty versionProp = desc.firstVersionProperty();
+			if (versionProp != null) {
+				Object version = versionProp.getValue(owner);
+				if (desc.isCacheBeanVersionStale(id, version)) {
+					loader.refresh(owner);
+					for (BeanProperty property : desc.propertiesMany()) {
+						loader.refreshMany(owner, property.getName());
+					}
+				}
+			}
+		}
+	}
 
   /**
    * Called for "enhancement" postSetter processing. This is around a PUTFIELD
@@ -658,7 +683,22 @@ public final class EntityBeanIntercept implements Serializable {
   public PropertyChangeEvent preSetter(boolean intercept, String propertyName, Object oldValue,
       Object newValue) {
 
-    boolean changed = !areEqual(oldValue, newValue);
+	// JBW/GW - 08MAR13: Allow the @Version property to get saved over
+	// itself so that Ebean.save() works and
+	// a new @Version gets written out to help test cache staleness.
+	BeanProperty versionProp = null;
+	if (ebeanServerName != null) {
+		DefaultServer loader = (DefaultServer) Ebean.getServer(ebeanServerName);
+		BeanDescriptor<?> desc = loader.getBeanDescriptor(owner.getClass());
+		versionProp = desc.firstVersionProperty();
+	}
+	
+	boolean changed = false;
+	if ((versionProp != null) && (propertyName.equals(versionProp.getName()))) {
+		changed = true;
+	} else {
+		changed = !areEqual(oldValue, newValue);
+	}
 
     if (intercept && changed) {
       addDirty(propertyName);

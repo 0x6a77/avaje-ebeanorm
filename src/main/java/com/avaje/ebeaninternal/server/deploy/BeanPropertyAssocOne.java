@@ -1,5 +1,6 @@
 package com.avaje.ebeaninternal.server.deploy;
 
+import java.lang.reflect.Modifier;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -14,6 +15,7 @@ import com.avaje.ebean.Transaction;
 import com.avaje.ebean.bean.EntityBean;
 import com.avaje.ebean.bean.EntityBeanIntercept;
 import com.avaje.ebean.bean.PersistenceContext;
+import com.avaje.ebeaninternal.server.cache.AssocBeanCacheCombo;
 import com.avaje.ebeaninternal.server.core.DefaultSqlUpdate;
 import com.avaje.ebeaninternal.server.deploy.id.IdBinder;
 import com.avaje.ebeaninternal.server.deploy.id.ImportedId;
@@ -365,33 +367,60 @@ public class BeanPropertyAssocOne<T> extends BeanPropertyAssoc<T> {
     }
 
     public Object getCacheDataValue(Object bean){
-    	if (embedded) {
-    		throw new RuntimeException();
+      if (embedded) {
+        // JBW/GW - 12MAR13: Deal with abstract AssocOne in the cache.
+		//throw new RuntimeException();
+		return getValue(bean);
+      } else {
+        Object ap = getValue(bean);
+    	if (ap == null){
+    	  return null;
     	} else {
-    		Object ap = getValue(bean);
-    		if (ap == null){
-    			return null;
-    		} else {
-        		return targetDescriptor.getId(ap);    			
-    		}
+		  Object cacheValue = targetDescriptor.getId(ap);
+		  // JBW/GW - 12MAR13: Deal with abstract AssocOne in the cache.
+		  if (Modifier.isAbstract(targetDescriptor.getBeanType().getModifiers())) {
+			cacheValue = new AssocBeanCacheCombo(cacheValue, ap.getClass());
+		  }
+		  return cacheValue;
     	}
+      }
     }
     
     public void setCacheDataValue(Object bean, Object cacheData, Object oldValues, boolean readOnly){
-    	if (cacheData != null) {
-    		if (embedded){
-        		throw new RuntimeException();
-    		} else {
-		    	T ref  = targetDescriptor.createReference(Boolean.FALSE, cacheData, null);
-		    	setValue(bean, ref);
-		    	if (oldValues != null){
-		    		setValue(oldValues, ref);
-		    	}
-		    	if (readOnly){
-		    		((EntityBean)ref)._ebean_intercept().setReadOnly(true);
-		    	}
-    		}
-    	}
+      if (cacheData != null) {
+        if (embedded){
+          // JBW/GW - 12MAR13: Deal with absract changes.
+		  //throw new RuntimeException();
+		  setValue(bean, cacheData);
+		  if (oldValues != null) {
+			setValue(oldValues, cacheData);
+		  }
+		  if (readOnly) {
+			((EntityBean) cacheData)._ebean_intercept().setReadOnly(true);
+		  }
+
+    	} else {
+		  // JBW/GW - 12MAR13: Deal with abstract AssocOne in the cache.
+		  BeanDescriptor<T> instanceTargetDesc = targetDescriptor;
+		  if (Modifier.isAbstract(instanceTargetDesc.getBeanType().getModifiers())) {
+		  	AssocBeanCacheCombo combo = (AssocBeanCacheCombo) cacheData;
+		  	instanceTargetDesc = targetDescriptor.getBeanDescriptor(combo.getClazz());
+		  	cacheData = combo.getId();
+		  }
+		  T ref = instanceTargetDesc.createReference(Boolean.FALSE, cacheData, null);
+		  // JBW/GW - 15MAR13: Prevent intercepting - otherwise we can end up with infinite set/get/set/get loops.
+//				boolean interceptingWas = ((EntityBean) bean)._ebean_getIntercept().isIntercepting();
+//				((EntityBean) bean)._ebean_getIntercept().setIntercepting(false);
+		  setValue(bean, ref);
+		  if (oldValues != null){
+		    setValue(oldValues, ref);
+		  }
+//				((EntityBean) bean)._ebean_getIntercept().setIntercepting(interceptingWas);
+		  if (readOnly){
+		    ((EntityBean)ref)._ebean_intercept().setReadOnly(true);
+		  }
+        }
+      }
     }
 
     /**

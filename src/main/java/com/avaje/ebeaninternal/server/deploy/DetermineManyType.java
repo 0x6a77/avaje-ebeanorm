@@ -13,13 +13,16 @@ public class DetermineManyType {
   }
 
   public ManyType getManyType(Class<?> type) {
-    if (type.equals(List.class)) {
+    // JBW/GW - 23OCT12: allow sub classes of List
+    if (List.class.isAssignableFrom(type)){
       return ManyType.JAVA_LIST;
     }
-    if (type.equals(Set.class)) {
+    // JBW/GW - 23OCT12: allow sub classes of Set
+    if (Set.class.isAssignableFrom(type)){
       return ManyType.JAVA_SET;
     }
-    if (type.equals(Map.class)) {
+    // JBW/GW - 23OCT12: allow sub classes of Map
+    if (Map.class.isAssignableFrom(type)){
       return ManyType.JAVA_MAP;
     }
     return null;

@@ -744,7 +744,11 @@ public class BeanProperty implements ElPropertyValue {
     }
     
     public void setCacheDataValue(Object bean, Object cacheData, Object oldValues, boolean readOnly){
+    	// JBW/GW - 15MAR13: Prevent intercepting - otherwise we can end up with infinite set/get/set/get loops.
+		boolean interceptingWas = ((EntityBean) bean)._ebean_getIntercept().isIntercepting();
+		((EntityBean) bean)._ebean_getIntercept().setIntercepting(false);
     	setValue(bean, cacheData);
+		((EntityBean) bean)._ebean_getIntercept().setIntercepting(interceptingWas);
     }
     
     /**

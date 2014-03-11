@@ -1084,9 +1084,22 @@ public class BeanDescriptorManager implements BeanDescriptorMap {
 
     if (IdType.GENERATOR.equals(desc.getIdType())) {
       String genName = desc.getIdGeneratorName();
-      if (UuidIdGenerator.AUTO_UUID.equals(genName)) {
-        desc.setIdGenerator(uuidIdGenerator);
+      try {
+    	Object generator = null;
+    	try {
+          // JBW/GW - 24DEC12: allow the application to specify an Id generator.
+    	  generator = this.getClass().getClassLoader().loadClass(genName).newInstance();
+        } catch (ClassNotFoundException e) {
+          generator = uuidIdGenerator;
+        }		
+		if (generator instanceof IdGenerator) {
+	      desc.setIdGenerator((IdGenerator) generator);
         return IdType.GENERATOR;
+        }
+      } catch (InstantiationException e) {
+		logger.warn(e.getLocalizedMessage());
+      } catch (IllegalAccessException e) {
+		logger.warn(e.getLocalizedMessage());
       }
     }
 
